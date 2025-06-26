@@ -3,34 +3,49 @@
 # Add steps that analyze code, save build artifacts, deploy, and more:
 # https://docs.microsoft.com/azure/devops/pipelines/languages/javascript
 
-   pool:
-     name: default
+pool:
+  name: default
      
-   trigger:
-     - None
+trigger:
+  - None
 
-   resources:
-     pipelines:
-      - pipeline: buildContosoAir # identifier for the resource used in pipeline resource variables
-        source: Student1-52477213.ContosoAir # name of the pipeline that produces the artifact  
-        trigger:
-          branches:
-           include:
-             - master  
-   steps:
-   - task: DownloadPipelineArtifact@2
-     inputs:
-        buildType: 'specific'
-        project: '4105d8cc-2060-4da5-b82f-30388f41cfa6'
-        definition: '4'
-        buildVersionToDownload: 'latest'
-        targetPath: '$(Pipeline.Workspace)'
-   - task: AzureRmWebAppDeployment@5
-     inputs:
-       ConnectionType: 'AzureRM'
-       azureSubscription: 'Azure Connection'
-       appType: 'webApp'
-       WebAppName: '$(web_prefix)-$(web_site)-$(web_environment)'
-       packageForLinux: '$(Pipeline.Workspace)/**/*.zip'
+resources:
+  pipelines:
+  - pipeline: buildContosoAir # identifier for the resource used in pipeline resource variables
+    source: DavidOsberg.ContosoAir # name of the pipeline that produces the artifact  
+    trigger:
+      branches:
+        include:
+        - master  
+steps:
+- task: DownloadPipelineArtifact@2
+  inputs:
+    buildType: 'specific'
+    project: '4105d8cc-2060-4da5-b82f-30388f41cfa6'
+    definition: '4'
+    buildVersionToDownload: 'latest'
+    targetPath: '$(Pipeline.Workspace)'
+
+- task: AzureResourceManagerTemplateDeployment@3
+  inputs:
+      deploymentScope: 'Resource Group'
+      azureResourceManagerConnection: 'Azure Connection'
+      subscriptionId: '24b2ff6d-62ce-4620-b905-05313c8880f4'
+      action: 'Create Or Update Resource Group'
+      resourceGroupName: 'rg-lod'
+      location: 'East US 2'
+      templateLocation: 'Linked artifact'
+      csmFile: '$(Pipeline.Workspace)/drop/Templates/azuredeploy.json'
+      csmParametersFile: '$(Pipeline.Workspace)/drop/Templates/azuredeploy.parameters.json'
+      overrideParameters: '-p_environment $(web_environment) -p_site_prefix $(web_prefix) -p_site_web_name $(web_site)'
+      deploymentMode: 'Incremental'
+
+- task: AzureRmWebAppDeployment@5
+  inputs:
+      ConnectionType: 'AzureRM'
+      azureSubscription: 'Azure Connection'
+      appType: 'webApp'
+      WebAppName: '$(web_prefix)-$(web_site)-$(web_environment)'
+      packageForLinux: '$(Pipeline.Workspace)/**/*.zip'
 
 
